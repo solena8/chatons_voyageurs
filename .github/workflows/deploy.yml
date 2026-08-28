@@ -1,60 +1,44 @@
 name: CI/CD Travel Map App
 
-# Déclenchement à chaque push sur la branche main
 on:
   push:
-    branches: [ main ]
+    branches:
+      - master
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - master
+      - main
+  workflow_dispatch: # Ajoute un bouton pour déclencher manuellement si besoin
 
 jobs:
-  test_and_build:
-    name: Run Tests & Build Web
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupération du code
-      - name: Checkout repository
+      - name: Récupérer le code
         uses: actions/checkout@v4
 
-      # 2. Installation de Java (nécessaire pour certains outils Firebase/Flutter)
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      # 3. Installation de Flutter
-      - name: Set up Flutter
+      - name: Installer Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
 
-      # 4. Installation des dépendances
-      - name: Install dependencies
+      - name: Installer les dépendances
         run: flutter pub get
 
-      # 5. Vérification de la syntaxe du code (Linter)
-      - name: Analyze code
+      - name: Analyser le code
         run: flutter analyze
 
-      # 6. Exécution des tests unitaires
-      - name: Run unit tests
+      - name: Lancer les tests unitaires
         run: flutter test
 
-      # 7. Compilation de l'application Web
-      - name: Build Web Application
+      - name: Compiler pour le Web
         run: flutter build web --release
 
-      # 8. Déploiement automatique sur Firebase Hosting (uniquement sur push main)
-      - name: Deploy to Firebase Hosting
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_TRAVEL_MAP_APP }}'
-          channelId: live
-          projectId: travel-map-app
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      - name: Déployer sur Firebase Hosting
+        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
