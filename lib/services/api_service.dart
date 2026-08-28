@@ -4,40 +4,42 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Helper service for handling image uploads and geocoding API calls.
+/// Modèle pour encapsuler une suggestion d'adresse avec ses coordonnées
+class AddressSuggestion {
+  final String displayName;
+  final LatLng location;
+
+  AddressSuggestion({required this.displayName, required this.location});
+
+  @override
+  String toString() => displayName;
+}
+
 class ApiService {
-  // Public API key for Uploadcare CDN service
   static const String uploadcarePublicKey = '6023ddaf3007d05dbceb';
 
-  /// Uploads an image file to Uploadcare CDN.
-  /// Works across both Mobile and Web platforms by reading file data as raw bytes.
   static Future<String?> uploadToUploadcare(XFile file) async {
     try {
       final uri = Uri.parse('https://upload.uploadcare.com/base/');
-      // Read raw binary bytes to avoid filesystem path incompatibilities on the web
       final bytes = await file.readAsBytes();
 
-      // Prepare multipart file upload payload
       final multipartFile = http.MultipartFile.fromBytes(
         'file',
         bytes,
         filename: file.name.isNotEmpty ? file.name : 'upload.jpg',
       );
 
-      // Build POST multipart request
       final request = http.MultipartRequest('POST', uri)
         ..fields['UPLOADCARE_PUB_KEY'] = uploadcarePublicKey
-        ..fields['UPLOADCARE_STORE'] = '1' // Ensures the uploaded file is permanently stored
+        ..fields['UPLOADCARE_STORE'] = '1'
         ..files.add(multipartFile);
 
-      // Execute request and read string response
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
 
       if (response.statusCode == 200) {
         final json = jsonDecode(responseData);
         final fileId = json['file'];
-        // Return standard CDN preview URL using the returned UUID
         return 'https://4tzndtpq5a.ucarecd.net/$fileId/-/preview/';
       } else {
         debugPrint('Erreur Uploadcare (${response.statusCode}) : $responseData');
@@ -47,27 +49,56 @@ class ApiService {
     }
     return null;
   }
+  /// Recherche des suggestions d'adresses via l'API Photon (supporte le Web et CORS)
+  static Future<List<AddressSuggestion>> searchAddressSuggestions(String query) async {
+    if (query.trim().isEmpty) return [];
 
-  /// Geocodes a text address or city name to GPS coordinates (LatLng) using OpenStreetMap Nominatim API.
-  static Future<LatLng?> searchAddress(String query) async {
+    // Photon accepte les requêtes web cross-origin (CORS)
     final url = Uri.parse(
-      'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1',
+      'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&limit=5',
     );
 
-    // Custom User-Agent header is strictly required by Nominatim's Fair Use policy
-    final response = await http.get(url, headers: {
-      'User-Agent': 'FlutterTravelMapApp/1.0',
-    });
+    try {
+      final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      if (data.isNotEmpty) {
-        // Parse latitude and longitude strings from the first result
-        final lat = double.parse(data[0]['lat']);
-        final lon = double.parse(data[0]['lon']);
-        return LatLng(lat, lon);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final List features = data['features'] ?? [];
+
+        return features.map((item) {
+          final properties = item['properties'] as Map<String, dynamic>;
+          final geometry = item['geometry'] as Map<String, dynamic>;
+          final List coordinates = geometry['coordinates'];
+
+          // Photon renvoie [longitude, latitude] dans le GeoJSON
+          final lon = (coordinates[0] as num).toDouble();
+          final lat = (coordinates[1] as num).toDouble();
+
+          // Construction du libellé complet (nom, ville, pays)
+          final parts = [
+            properties['name'],
+            properties['street'],
+            properties['city'] ?? properties['town'] ?? properties['village'],
+            properties['country'],
+          ].where((part) => part != null && part.toString().isNotEmpty).toList();
+
+          final displayName = parts.join(', ');
+
+          return AddressSuggestion(
+            displayName: displayName.isNotEmpty ? displayName : 'Lieu sans nom',
+            location: LatLng(lat, lon),
+          );
+        }).toList();
       }
+    } catch (e) {
+      debugPrint('Erreur Photon API : $e');
     }
-    return null;
+    return [];
+  }
+
+  /// Rétrocompatibilité : renvoie uniquement le premier LatLng
+  static Future<LatLng?> searchAddress(String query) async {
+    final list = await searchAddressSuggestions(query);
+    return list.isNotEmpty ? list.first.location : null;
   }
 }

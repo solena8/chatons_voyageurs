@@ -34,77 +34,115 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   /// Affiche la modale inférieure avec les détails d'un lieu
+  /// Affiche une modale centrée avec les détails d'un lieu
   void _showPlaceDetails(Place place) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        width: double.infinity,
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // La modale s'adapte à son contenu
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (place.imageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  place.imageUrl,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 180,
-                      color: Colors.grey[200],
-                      child: const Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 180,
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth < 500 ? screenWidth * 0.92 : 440.0;
+
+        return AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          content: SizedBox(
+            width: dialogWidth,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image avec coins arrondis
+                  if (place.imageUrl.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        place.imageUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: const Center(child: CircularProgressIndicator()),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  const SizedBox(height: 12),
+
+                  // Titre
+                  Text(
+                    place.title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Dates de séjour
+                  Row(
+                    children: [
+                      const Icon(Icons.date_range, size: 16, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Du ${DateFormat.yMMMd('fr_FR').format(place.arrivalDate)} au ${DateFormat.yMMMd('fr_FR').format(place.departureDate)}',
+                        style: const TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                    ],
+                  ),
+
+                  // Description
+                  if (place.description != null && place.description!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      place.description!,
+                      style: const TextStyle(fontSize: 14, height: 1.3),
+                    ),
+                  ],
+                ],
               ),
-            const SizedBox(height: 10),
-            Text(place.title, style: Theme.of(context).textTheme.headlineSmall),
-            Text('Visité le : ${DateFormat.yMMMd('fr_FR').format(place.arrivalDate)}',
-                style: const TextStyle(color: Colors.grey)),
-            Text('Visité le : ${DateFormat.yMMMd('fr_FR').format(place.departureDate)}',
-                style: const TextStyle(color: Colors.grey)),
-            if (place.description != null && place.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(place.description!),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _openAddEditDialog(place: place);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () async {
-                    // Suppression directe dans Firestore
-                    await _placesRef.doc(place.id).delete();
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                ),
-              ],
-            )
+            ),
+          ),
+          actions: [
+            // Bouton Supprimer
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Supprimer',
+              onPressed: () async {
+                await _placesRef.doc(place.id).delete();
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
+            // Bouton Modifier
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+              tooltip: 'Modifier',
+              onPressed: () {
+                Navigator.pop(context);
+                _openAddEditDialog(place: place);
+              },
+            ),
+            const Spacer(),
+            // Bouton Fermer
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fermer'),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
