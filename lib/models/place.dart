@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Represents a travel location data model used across the app and stored in Firestore.
 class Place {
-  final String id;                  // Unique identifier corresponding to the Firestore Document ID
+  final String id;
   final String title;
   final String? description;
   final String imageUrl;
@@ -22,37 +21,43 @@ class Place {
     required this.departureDate,
   });
 
-  /// Factory constructor to convert a Firestore DocumentSnapshot into a strongly-typed Place object.
+  /// Méthode utilitaire pour convertir proprement n'importe quel type en double
+  static double _parseDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  /// Méthode utilitaire pour convertir proprement un Timestamp / String / int en DateTime
+  static DateTime _parseDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return DateTime.now();
+  }
+
   factory Place.fromFirestore(DocumentSnapshot doc) {
-    // Casts raw document data into a key-value Map
-    final data = doc.data() as Map<String, dynamic>;
-    // String = type de la clé, dynamic : type de la valeur, peut être variable
-    // .data : méthode de la classe DocumentSnapshot de cloud firestore
-    // Map est un type : dictionnaire
+    final data = doc.data() as Map<String, dynamic>? ?? {};
 
     return Place(
       id: doc.id,
-      title: data['title'] ?? '',
-      description: data['description'],
-      imageUrl: data['imageUrl'] ?? '',
-      // Explicit cast from num to double handles both int and double values stored in Firestore
-      latitude: (data['latitude'] as num).toDouble(),
-      longitude: (data['longitude'] as num).toDouble(),
-      // Converts Firestore Timestamp instances into Dart DateTime objects
-      arrivalDate: (data['arrivalDate'] as Timestamp).toDate(),
-      departureDate: (data['departureDate'] as Timestamp).toDate(),
+      title: data['title'] as String? ?? '',
+      description: data['description'] as String?,
+      imageUrl: data['imageUrl'] as String? ?? '',
+      latitude: _parseDouble(data['latitude']),
+      longitude: _parseDouble(data['longitude']),
+      arrivalDate: _parseDate(data['arrivalDate']),
+      departureDate: _parseDate(data['departureDate']),
     );
   }
 
-  /// Converts the Place instance fields into a Map suitable for saving to Cloud Firestore.
   Map<String, dynamic> toFirestore() {
     return {
       'title': title,
-      'description': description,
+      if (description != null) 'description': description,
       'imageUrl': imageUrl,
       'latitude': latitude,
       'longitude': longitude,
-      // Converts Dart DateTime objects back to Firestore Timestamp objects
       'arrivalDate': Timestamp.fromDate(arrivalDate),
       'departureDate': Timestamp.fromDate(departureDate),
     };
