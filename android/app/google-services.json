@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "579050440192",
+    "project_id": "travel-map-app-9e670",
+    "storage_bucket": "travel-map-app-9e670.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:579050440192:android:6690ec4b06c84938a37ae5",
+        "android_client_info": {
+          "package_name": "com.example.travel_map_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDG9tzM5k5uu6GUWxIxr6QrkmXhjZoi8kk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

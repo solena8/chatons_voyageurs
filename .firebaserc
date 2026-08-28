@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "travel-map-app-9e670"
+  },
+  "targets": {
+    "travel-map-app-9e670": {
+      "hosting": {
+        "app": [
+          "chatons-voyageurs"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
