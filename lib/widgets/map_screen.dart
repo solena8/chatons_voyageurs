@@ -33,8 +33,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  /// Affiche la modale inférieure avec les détails d'un lieu
-  /// Affiche une modale centrée avec les détails d'un lieu
   void _showPlaceDetails(Place place) {
     showDialog(
       context: context,
@@ -52,7 +50,6 @@ class _MapScreenState extends State<MapScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image avec coins arrondis
                   if (place.imageUrl.isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -61,28 +58,9 @@ class _MapScreenState extends State<MapScreen> {
                         height: 200,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 200,
-                            color: Colors.grey[200],
-                            child: const Center(child: CircularProgressIndicator()),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 200,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
-                            ),
-                          );
-                        },
                       ),
                     ),
                   const SizedBox(height: 12),
-
-                  // Titre
                   Text(
                     place.title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -90,33 +68,19 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Dates de séjour
-                  Row(
-                    children: [
-                      const Icon(Icons.date_range, size: 16, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Du ${DateFormat.yMMMd('fr_FR').format(place.arrivalDate)} au ${DateFormat.yMMMd('fr_FR').format(place.departureDate)}',
-                        style: const TextStyle(color: Colors.black54, fontSize: 13),
-                      ),
-                    ],
+                  Text(
+                    'Du ${place.arrivalDate.day}/${place.arrivalDate.month}/${place.arrivalDate.year} au ${place.departureDate.day}/${place.departureDate.month}/${place.departureDate.year}',
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
-
-                  // Description
                   if (place.description != null && place.description!.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    Text(
-                      place.description!,
-                      style: const TextStyle(fontSize: 14, height: 1.3),
-                    ),
+                    Text(place.description!, style: const TextStyle(fontSize: 14)),
                   ],
                 ],
               ),
             ),
           ),
           actions: [
-            // Bouton Supprimer
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               tooltip: 'Supprimer',
@@ -125,7 +89,6 @@ class _MapScreenState extends State<MapScreen> {
                 if (context.mounted) Navigator.pop(context);
               },
             ),
-            // Bouton Modifier
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: Colors.blue),
               tooltip: 'Modifier',
@@ -134,8 +97,6 @@ class _MapScreenState extends State<MapScreen> {
                 _openAddEditDialog(place: place);
               },
             ),
-            const Spacer(),
-            // Bouton Fermer
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Fermer'),
