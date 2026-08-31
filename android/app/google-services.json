@@ -12,7 +12,20 @@
           "package_name": "com.example.travel_map_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "579050440192-f6ppi9m79orobpqi6p4cb83oglj970l6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.travel_map_app",
+            "certificate_hash": "23bac5a91e6aec271be560c9ce1c1ecf70fb6a9f"
+          }
+        },
+        {
+          "client_id": "579050440192-g8amjmvn71sd1kbird521m2f57dtbipe.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDG9tzM5k5uu6GUWxIxr6QrkmXhjZoi8kk"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "579050440192-g8amjmvn71sd1kbird521m2f57dtbipe.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "579050440192-hddcvkad78k11glmbfm1ohg2g1rgo0rs.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.travelMapApp"
+              }
+            }
+          ]
         }
       }
     }
