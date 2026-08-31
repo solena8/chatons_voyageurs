@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Place {
   final String id;
+  final String? mapId;
   final String title;
   final String? description;
   final String imageUrl;
@@ -12,6 +13,7 @@ class Place {
 
   Place({
     required this.id,
+    this.mapId,
     required this.title,
     this.description,
     required this.imageUrl,
@@ -21,14 +23,12 @@ class Place {
     required this.departureDate,
   });
 
-  /// Méthode utilitaire pour convertir proprement n'importe quel type en double
   static double _parseDouble(dynamic value) {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
   }
 
-  /// Méthode utilitaire pour convertir proprement un Timestamp / String / int en DateTime
   static DateTime _parseDate(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
@@ -36,11 +36,11 @@ class Place {
     return DateTime.now();
   }
 
-  factory Place.fromFirestore(DocumentSnapshot doc) {
+  factory Place.fromFirestore(DocumentSnapshot doc, {String? mapId}) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-
     return Place(
       id: doc.id,
+      mapId: mapId,
       title: data['title'] as String? ?? '',
       description: data['description'] as String?,
       imageUrl: data['imageUrl'] as String? ?? '',

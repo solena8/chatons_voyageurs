@@ -3,14 +3,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/place.dart';
+import '../models/trip_map.dart';
 import '../services/api_service.dart';
 
-/// Modal dialog for either creating a new place or modifying an existing one.
 class AddEditPlaceDialog extends StatefulWidget {
-  final LatLng? initialPosition; // GPS coordinates passed when tapping on the map
-  final Place? place;            // Existing place instance if opened in "Edit" mode
+  final LatLng? initialPosition;
+  final Place? place;
+  final String? targetMapId;
+  final List<TripMap> availableMaps;
 
-  const AddEditPlaceDialog({super.key, this.initialPosition, this.place});
+  const AddEditPlaceDialog({
+    super.key,
+    this.initialPosition,
+    this.place,
+    this.targetMapId,
+    this.availableMaps = const [],
+  });
 
   @override
   State<AddEditPlaceDialog> createState() => _AddEditPlaceDialogState();
@@ -28,6 +36,7 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
   DateTime _selectedArrivalDate = DateTime.now();
   DateTime _selectedDepartureDate = DateTime.now();
   bool _isLoading = false;
+  String? _selectedMapId;
 
   @override
   void initState() {
@@ -36,11 +45,13 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
     _descController = TextEditingController(text: widget.place?.description ?? '');
     _searchController = TextEditingController();
     _imageUrl = widget.place?.imageUrl;
+    _selectedMapId = widget.targetMapId ?? (widget.availableMaps.isNotEmpty ? widget.availableMaps.first.id : null);
 
     if (widget.place != null) {
       _selectedArrivalDate = widget.place!.arrivalDate;
       _selectedDepartureDate = widget.place!.departureDate;
       _selectedLocation = LatLng(widget.place!.latitude, widget.place!.longitude);
+      _selectedMapId = widget.place!.mapId ?? _selectedMapId;
     } else {
       _selectedLocation = widget.initialPosition;
     }
@@ -55,39 +66,28 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
   }
 
   Future<void> _selectDateRange() async {
-    final DateTimeRange? pickedRange = await showDateRangePicker(
+    final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
       initialDateRange: DateTimeRange(
         start: _selectedArrivalDate,
-        end: _selectedDepartureDate.isBefore(_selectedArrivalDate)
-            ? _selectedArrivalDate
-            : _selectedDepartureDate,
+        end: _selectedDepartureDate.isBefore(_selectedArrivalDate) ? _selectedArrivalDate : _selectedDepartureDate,
       ),
-      builder: (context, child) {
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 500,
-              maxHeight: 600,
-            ),
-            child: Dialog(
-              insetPadding: const EdgeInsets.all(16),
-              clipBehavior: Clip.antiAlias,
-              child: child,
-            ),
-          ),
-        );
-      },
+      builder: (context, child) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: Dialog(insetPadding: const EdgeInsets.all(16), clipBehavior: Clip.antiAlias, child: child),
+        ),
+      ),
     );
 
-    if (pickedRange == null) return;
-
-    setState(() {
-      _selectedArrivalDate = pickedRange.start;
-      _selectedDepartureDate = pickedRange.end;
-    });
+    if (picked != null) {
+      setState(() {
+        _selectedArrivalDate = picked.start;
+        _selectedDepartureDate = picked.end;
+      });
+    }
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -104,9 +104,9 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
   }
 
   Future<void> _savePlace() async {
-    if (!_formKey.currentState!.validate() || _selectedLocation == null || _imageUrl == null) {
+    if (!_formKey.currentState!.validate() || _selectedLocation == null || _imageUrl == null || _selectedMapId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez compléter tous les champs et ajouter une image.')),
+        const SnackBar(content: Text('Complétez le titre, la photo, le lieu et choisissez une carte.')),
       );
       return;
     }
@@ -114,8 +114,8 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
     setState(() => _isLoading = true);
 
     final data = {
-      'title': _titleController.text,
-      'description': _descController.text,
+      'title': _titleController.text.trim(),
+      'description': _descController.text.trim(),
       'imageUrl': _imageUrl,
       'latitude': _selectedLocation!.latitude,
       'longitude': _selectedLocation!.longitude,
@@ -123,10 +123,12 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
       'departureDate': Timestamp.fromDate(_selectedDepartureDate),
     };
 
+    final collection = FirebaseFirestore.instance.collection('maps').doc(_selectedMapId).collection('places');
+
     if (widget.place == null) {
-      await FirebaseFirestore.instance.collection('places').add(data);
+      await collection.add(data);
     } else {
-      await FirebaseFirestore.instance.collection('places').doc(widget.place!.id).update(data);
+      await collection.doc(widget.place!.id).update(data);
     }
 
     if (mounted) Navigator.pop(context);
@@ -135,9 +137,7 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Sur mobile (< 500px), on prend presque tout l'écran, sur PC on plafonne à 440px
     final dialogWidth = screenWidth < 500 ? screenWidth * 0.92 : 440.0;
-    final isCompact = screenWidth < 380;
 
     return AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -151,75 +151,55 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Titre
+                // Choix de la carte si plusieurs
+                if (widget.availableMaps.isNotEmpty && widget.place == null) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedMapId,
+                    decoration: const InputDecoration(labelText: 'Carte de destination'),
+                    items: widget.availableMaps.map((m) {
+                      return DropdownMenuItem(
+                        value: m.id,
+                        child: Row(
+                          children: [
+                            CircleAvatar(backgroundColor: m.color, radius: 6),
+                            const SizedBox(width: 8),
+                            Text(m.title),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setState(() => _selectedMapId = val),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
                 TextFormField(
                   controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Titre',
-                    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Titre'),
                   validator: (v) => v == null || v.isEmpty ? 'Titre requis' : null,
                 ),
                 const SizedBox(height: 8),
-
-                // Description
                 TextFormField(
                   controller: _descController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Description'),
                 ),
                 const SizedBox(height: 14),
 
-                // Sélecteur de dates responsive
                 OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
                   icon: const Icon(Icons.date_range, size: 18),
-                  label: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: isCompact
-                    // Si très petit écran : affichage court
-                        ? Text(
-                      '${_selectedArrivalDate.day}/${_selectedArrivalDate.month}/${_selectedArrivalDate.year} → ${_selectedDepartureDate.day}/${_selectedDepartureDate.month}/${_selectedDepartureDate.year}',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    )
-                    // Écran standard : affichage aéré
-                        : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Du ${_selectedArrivalDate.day}/${_selectedArrivalDate.month}/${_selectedArrivalDate.year}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
-                        ),
-                        Text(
-                          'Au ${_selectedDepartureDate.day}/${_selectedDepartureDate.month}/${_selectedDepartureDate.year}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
+                  label: Text(
+                    'Du ${_selectedArrivalDate.day}/${_selectedArrivalDate.month}/${_selectedArrivalDate.year} au ${_selectedDepartureDate.day}/${_selectedDepartureDate.month}/${_selectedDepartureDate.year}',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   onPressed: _selectDateRange,
                 ),
                 const SizedBox(height: 14),
 
-                // Autocomplétion Adresse
                 Autocomplete<AddressSuggestion>(
                   displayStringForOption: (AddressSuggestion option) => option.displayName,
-                  optionsBuilder: (TextEditingValue textEditingValue) async {
-                    if (textEditingValue.text.trim().length < 3) {
-                      return const Iterable<AddressSuggestion>.empty();
-                    }
-                    return await ApiService.searchAddressSuggestions(textEditingValue.text);
+                  optionsBuilder: (TextEditingValue textVal) async {
+                    if (textVal.text.trim().length < 3) return const Iterable<AddressSuggestion>.empty();
+                    return await ApiService.searchAddressSuggestions(textVal.text);
                   },
                   onSelected: (AddressSuggestion selection) {
                     setState(() {
@@ -227,22 +207,20 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
                       _searchController.text = selection.displayName;
                     });
                   },
-                  fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                  fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
                     return TextField(
-                      controller: textEditingController,
+                      controller: textCtrl,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         labelText: 'Rechercher une adresse',
-                        hintText: 'Tapez une ville ou un lieu...',
+                        hintText: 'Tapez une ville...',
                         prefixIcon: Icon(Icons.location_on_outlined),
-                        contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                       ),
                     );
                   },
                 ),
                 const SizedBox(height: 10),
 
-                // Coordonnées GPS
                 if (_selectedLocation != null)
                   Text(
                     'Coordonnées : ${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)}',
@@ -251,7 +229,6 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
                   ),
                 const SizedBox(height: 12),
 
-                // Upload Photo
                 ElevatedButton.icon(
                   onPressed: _pickAndUploadImage,
                   icon: const Icon(Icons.upload),
@@ -261,11 +238,7 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
                 if (_imageUrl != null)
                   const Padding(
                     padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'Image chargée avec succès !',
-                      style: TextStyle(color: Colors.green),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('Image chargée avec succès !', style: TextStyle(color: Colors.green), textAlign: TextAlign.center),
                   ),
 
                 if (_isLoading)
@@ -281,14 +254,8 @@ class _AddEditPlaceDialogState extends State<AddEditPlaceDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        ElevatedButton(
-          onPressed: _savePlace,
-          child: const Text('Enregistrer'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+        ElevatedButton(onPressed: _savePlace, child: const Text('Enregistrer')),
       ],
     );
   }

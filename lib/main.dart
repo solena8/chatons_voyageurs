@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
-import 'widgets/map_screen.dart';
+import 'screens/auth_gate.dart';
 
 /// Entry point of the Flutter application.
 void main() async {
@@ -40,7 +40,7 @@ class TravelMapApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Sets the initial screen to MapScreen
-      home: const MapScreen(),
+      home: const AuthGate(),
     );
   }
 }
