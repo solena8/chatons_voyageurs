@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/trip_map.dart';
-import '../services/auth_service.dart';
+import '../services/trip_map_service.dart';
 
 class InviteUserDialog extends StatefulWidget {
   final TripMap map;
@@ -25,7 +25,7 @@ class _InviteUserDialogState extends State<InviteUserDialog> {
     if (_emailCtrl.text.trim().isEmpty) return;
 
     setState(() => _isLoading = true);
-    final success = await AuthService.inviteUserByEmail(widget.map.id, _emailCtrl.text);
+    final success = await TripMapService.inviteUserByEmail(widget.map.id, _emailCtrl.text);
 
     if (mounted) {
       Navigator.pop(context);
@@ -57,7 +57,9 @@ class _InviteUserDialogState extends State<InviteUserDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
         ElevatedButton(
           onPressed: _isLoading ? null : _submit,
-          child: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Inviter'),
+          child: _isLoading
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Inviter'),
         ),
       ],
     );

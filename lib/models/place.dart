@@ -23,6 +23,30 @@ class Place {
     required this.departureDate,
   });
 
+  Place copyWith({
+    String? id,
+    String? mapId,
+    String? title,
+    String? description,
+    String? imageUrl,
+    double? latitude,
+    double? longitude,
+    DateTime? arrivalDate,
+    DateTime? departureDate,
+  }) {
+    return Place(
+      id: id ?? this.id,
+      mapId: mapId ?? this.mapId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      arrivalDate: arrivalDate ?? this.arrivalDate,
+      departureDate: departureDate ?? this.departureDate,
+    );
+  }
+
   static double _parseDouble(dynamic value) {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;

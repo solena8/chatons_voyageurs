@@ -8,7 +8,7 @@ class AuthService {
 
   static User? get currentUser => _auth.currentUser;
 
-  /// Écoute la session et écrit immédiatement dans /users si l'utilisateur est connecté
+  /// Écoute la session et synchronise le profil utilisateur
   static Stream<User?> get authStateChanges => _auth.authStateChanges().asyncMap((user) async {
     if (user != null) {
       await syncUserProfile(user);
@@ -66,22 +66,4 @@ class AuthService {
 
   /// Déconnexion
   static Future<void> signOut() => _auth.signOut();
-
-  /// Invitation par Email
-  static Future<bool> inviteUserByEmail(String mapId, String email) async {
-    final cleanEmail = email.trim().toLowerCase();
-    final query = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: cleanEmail)
-        .limit(1)
-        .get();
-
-    if (query.docs.isEmpty) return false;
-
-    final targetUid = query.docs.first.id;
-    await _firestore.collection('maps').doc(mapId).update({
-      'members': FieldValue.arrayUnion([targetUid]),
-    });
-    return true;
-  }
 }

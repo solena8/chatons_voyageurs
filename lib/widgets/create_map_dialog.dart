@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/trip_map.dart';
 import '../services/auth_service.dart';
+import '../services/trip_map_service.dart';
 
 class CreateMapDialog extends StatefulWidget {
   final ValueChanged<String> onMapCreated;
@@ -23,6 +23,7 @@ class _CreateMapDialogState extends State<CreateMapDialog> {
     Colors.teal,
   ];
   late Color _selectedColor;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -40,6 +41,8 @@ class _CreateMapDialogState extends State<CreateMapDialog> {
     final user = AuthService.currentUser;
     if (user == null || _titleCtrl.text.trim().isEmpty) return;
 
+    setState(() => _isLoading = true);
+
     final newMap = TripMap(
       id: '',
       title: _titleCtrl.text.trim(),
@@ -48,8 +51,8 @@ class _CreateMapDialogState extends State<CreateMapDialog> {
       color: _selectedColor,
     );
 
-    final docRef = await FirebaseFirestore.instance.collection('maps').add(newMap.toFirestore());
-    widget.onMapCreated(docRef.id);
+    final mapId = await TripMapService.createMap(newMap);
+    widget.onMapCreated(mapId);
     if (mounted) Navigator.pop(context);
   }
 
@@ -86,7 +89,12 @@ class _CreateMapDialogState extends State<CreateMapDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-        ElevatedButton(onPressed: _submit, child: const Text('Créer')),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _submit,
+          child: _isLoading
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Créer'),
+        ),
       ],
     );
   }

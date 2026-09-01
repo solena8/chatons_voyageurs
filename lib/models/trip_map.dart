@@ -16,6 +16,22 @@ class TripMap {
     required this.color,
   });
 
+  TripMap copyWith({
+    String? id,
+    String? title,
+    String? ownerId,
+    List<String>? members,
+    Color? color,
+  }) {
+    return TripMap(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      ownerId: ownerId ?? this.ownerId,
+      members: members ?? this.members,
+      color: color ?? this.color,
+    );
+  }
+
   factory TripMap.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     final colorHex = data['colorHex'] as String? ?? '0xFFE53935';

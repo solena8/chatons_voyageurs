@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/place.dart';
 import '../models/trip_map.dart';
+import '../services/place_service.dart';
 
 class PlaceDetailsDialog extends StatelessWidget {
   final Place place;
@@ -56,7 +56,8 @@ class PlaceDetailsDialog extends StatelessWidget {
                 ),
               const SizedBox(height: 6),
               Text(
-                'Du ${place.arrivalDate.day}/${place.arrivalDate.month}/${place.arrivalDate.year} au ${place.departureDate.day}/${place.departureDate.month}/${place.departureDate.year}',
+                'Du ${place.arrivalDate.day}/${place.arrivalDate.month}/${place.arrivalDate.year} '
+                    'au ${place.departureDate.day}/${place.departureDate.month}/${place.departureDate.year}',
                 style: const TextStyle(color: Colors.black54, fontSize: 13),
               ),
               if (place.description != null && place.description!.isNotEmpty) ...[
@@ -73,13 +74,29 @@ class PlaceDetailsDialog extends StatelessWidget {
             icon: const Icon(Icons.delete_outline, color: Colors.red),
             tooltip: 'Supprimer',
             onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('maps')
-                  .doc(place.mapId!)
-                  .collection('places')
-                  .doc(place.id)
-                  .delete();
-              if (context.mounted) Navigator.pop(context);
+              final bool? confirm = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Confirmer la suppression'),
+                  content: Text('Voulez-vous vraiment supprimer "${place.title}" ?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Annuler'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('Supprimer'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await PlaceService.deletePlace(place.mapId!, place.id);
+                if (context.mounted) Navigator.pop(context);
+              }
             },
           ),
         if (place.mapId != null)

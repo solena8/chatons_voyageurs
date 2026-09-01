@@ -9,7 +9,7 @@ on:
     branches:
       - master
       - main
-  workflow_dispatch: # Ajoute un bouton pour déclencher manuellement si besoin
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -35,7 +35,9 @@ jobs:
         run: flutter test
 
       - name: Compiler pour le Web
-        run: flutter build web --release
+        run: |
+          flutter build web --release \
+            --dart-define=UPLOADCARE_KEY=${{ secrets.UPLOADCARE_KEY }}
 
       - name: Déployer sur Firebase Hosting
         if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'

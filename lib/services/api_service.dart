@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Modèle pour encapsuler une suggestion d'adresse avec ses coordonnées
 class AddressSuggestion {
   final String displayName;
   final LatLng location;
@@ -16,7 +15,9 @@ class AddressSuggestion {
 }
 
 class ApiService {
-  static const String uploadcarePublicKey = '6023ddaf3007d05dbceb';
+  static const String uploadcarePublicKey = String.fromEnvironment(
+    'UPLOADCARE_KEY',
+  );
 
   static Future<String?> uploadToUploadcare(XFile file) async {
     try {
@@ -49,11 +50,10 @@ class ApiService {
     }
     return null;
   }
-  /// Recherche des suggestions d'adresses via l'API Photon (supporte le Web et CORS)
+
   static Future<List<AddressSuggestion>> searchAddressSuggestions(String query) async {
     if (query.trim().isEmpty) return [];
 
-    // Photon accepte les requêtes web cross-origin (CORS)
     final url = Uri.parse(
       'https://photon.komoot.io/api/?q=${Uri.encodeComponent(query)}&limit=5',
     );
@@ -70,11 +70,9 @@ class ApiService {
           final geometry = item['geometry'] as Map<String, dynamic>;
           final List coordinates = geometry['coordinates'];
 
-          // Photon renvoie [longitude, latitude] dans le GeoJSON
           final lon = (coordinates[0] as num).toDouble();
           final lat = (coordinates[1] as num).toDouble();
 
-          // Construction du libellé complet (nom, ville, pays)
           final parts = [
             properties['name'],
             properties['street'],
@@ -94,11 +92,5 @@ class ApiService {
       debugPrint('Erreur Photon API : $e');
     }
     return [];
-  }
-
-  /// Rétrocompatibilité : renvoie uniquement le premier LatLng
-  static Future<LatLng?> searchAddress(String query) async {
-    final list = await searchAddressSuggestions(query);
-    return list.isNotEmpty ? list.first.location : null;
   }
 }
